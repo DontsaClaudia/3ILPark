@@ -1,0 +1,58 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>_3ILPark</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="images\close.png" />
+    <None Remove="images\computer.png" />
+    <None Remove="images\facebook.png" />
+    <None Remove="images\facebook2.png" />
+    <None Remove="images\Gmail.png" />
+    <None Remove="images\google.png" />
+    <None Remove="images\home.png" />
+    <None Remove="images\IT_Manager.png" />
+    <None Remove="images\IT_Manager_2.png" />
+    <None Remove="images\linkedin.png" />
+    <None Remove="images\linkedin2.png" />
+    <None Remove="images\location.png" />
+    <None Remove="images\lock.png" />
+    <None Remove="images\park.png" />
+    <None Remove="images\rooms.png" />
+    <None Remove="images\settings.png" />
+    <None Remove="images\spy.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="1.1.0" />
+    <PackageReference Include="MaterialDesignThemes" Version="5.0.0" />
+    <PackageReference Include="System.Management" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="images\close.png" />
+    <Resource Include="images\computer.png" />
+    <Resource Include="images\facebook.png" />
+    <Resource Include="images\facebook2.png" />
+    <Resource Include="images\Gmail.png" />
+    <Resource Include="images\google.png" />
+    <Resource Include="images\home.png" />
+    <Resource Include="images\IT_Manager.png" />
+    <Resource Include="images\IT_Manager_2.png" />
+    <Resource Include="images\linkedin.png" />
+    <Resource Include="images\linkedin2.png" />
+    <Resource Include="images\location.png" />
+    <Resource Include="images\lock.png" />
+    <Resource Include="images\park.png" />
+    <Resource Include="images\rooms.png" />
+    <Resource Include="images\settings.png" />
+    <Resource Include="images\spy.ico" />
+  </ItemGroup>
+
+</Project>
