@@ -7,8 +7,9 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Management;
-using System.Net.Http;
 using System.Net.Http.Json;
+using _3ILPark_API.Models;
+using System.Threading.Tasks;
 
 namespace _3ILPark
 {
@@ -31,19 +32,12 @@ namespace _3ILPark
         int networkSpeed = 0;
         string[]? gateway;
 
-
-
-
-
         public MainWindow()
         {
             InitializeComponent();
             GetSystemInfo();
             GetNetworkInfo();
-            SendComputers();
-            SendNetworkInfo();
-            Visibility = Visibility.Visible;
-
+            SendData();
         }
 
         private void GetSystemInfo()
@@ -57,80 +51,71 @@ namespace _3ILPark
                 foreach (ManagementObject queryObj in searcher.Get())
                 {
                     // Récupérer les propriétés désirées
-                    manufacturer = queryObj["Manufacturer"].ToString();
-                    model = queryObj["Model"].ToString();
-                    totalPhysicalMemory = queryObj["TotalPhysicalMemory"].ToString();
-                    computerName = queryObj["Name"].ToString();
+                    manufacturer = queryObj["Manufacturer"]?.ToString();
+                    model = queryObj["Model"]?.ToString();
+                    totalPhysicalMemory = queryObj["TotalPhysicalMemory"]?.ToString();
+                    computerName = queryObj["Name"]?.ToString();
 
                     // Afficher les informations dans la fenêtre WPF
-                    systemInfoTextBox.Text += "Manufacturer: " + manufacturer + "\n";
-                    systemInfoTextBox.Text += "Model: " + model + "\n";
-                    systemInfoTextBox.Text += "Total Physical Memory: " + totalPhysicalMemory + " bytes\n";
-                    systemInfoTextBox.Text += "Computer Name: " + computerName + "\n";
+                    systemInfoTextBox.Text += $"Manufacturer: {manufacturer}\n";
+                    systemInfoTextBox.Text += $"Model: {model}\n";
+                    systemInfoTextBox.Text += $"Total Physical Memory: {totalPhysicalMemory} bytes\n";
+                    systemInfoTextBox.Text += $"Computer Name: {computerName}\n";
                 }
 
                 // Obtenir des informations sur le système d'exploitation
                 ManagementObjectSearcher osSearcher = new ManagementObjectSearcher("SELECT * FROM Win32_OperatingSystem");
                 foreach (ManagementObject queryObj in osSearcher.Get())
                 {
-                    osVersion = queryObj["Caption"].ToString();
-                    string? currentUser = queryObj["RegisteredUser"].ToString();
-                    byte freePhysicalMemory = (byte)Convert.ToUInt64(queryObj["FreePhysicalMemory"]);
+                    osVersion = queryObj["Caption"]?.ToString();
+                    string? currentUser = queryObj["RegisteredUser"]?.ToString();
+                    string freePhysicalMemory = queryObj["FreePhysicalMemory"]?.ToString();
 
                     // Afficher les informations sur le système d'exploitation
-                    systemInfoTextBox.Text += "OS Version: " + osVersion + "\n";
-                    systemInfoTextBox.Text += "Current User: " + currentUser + "\n";
-                    systemInfoTextBox.Text += "Free Physical Memory: " + freePhysicalMemory + " bytes\n";
+                    systemInfoTextBox.Text += $"OS Version: {osVersion}\n";
+                    systemInfoTextBox.Text += $"Current User: {currentUser}\n";
+                    systemInfoTextBox.Text += $"Free Physical Memory: {freePhysicalMemory} bytes\n";
                 }
             }
             catch (ManagementException ex)
             {
                 // Gérer les exceptions de requête WMI
-                MessageBox.Show("An error occurred while querying WMI: " + ex.Message);
+                MessageBox.Show($"An error occurred while querying WMI: {ex.Message}");
             }
         }
 
         private void GetNetworkInfo()
         {
-
-
-            // Créer un objet ManagementObjectSearcher pour interroger les adaptateurs réseau
-            ManagementObjectSearcher searcher = new ManagementObjectSearcher("SELECT * FROM Win32_NetworkAdapter");
-
-
-
-            // Parcourir chaque objet ManagementObject retourné par le rechercheur
-            foreach (ManagementObject queryObj in searcher.Get())
+            try
             {
+                // Créer un objet ManagementObjectSearcher pour interroger l'adaptateur réseau actif
+                ManagementObjectSearcher searcher = new ManagementObjectSearcher("SELECT * FROM Win32_NetworkAdapterConfiguration WHERE IPEnabled = TRUE");
 
-                try
+                // Parcourir chaque objet ManagementObject retourné par le rechercheur
+                foreach (ManagementObject queryObj in searcher.Get())
                 {
-
-
                     // Récupérer les propriétés désirées
-                    nameNet = queryObj["Name"].ToString();
-                    description = queryObj["Description"].ToString();
-                    macAddress = queryObj["MACAddress"] != null ? queryObj["MACAddress"].ToString() : string.Empty;
+                    nameNet = queryObj["Description"]?.ToString();
+                    description = queryObj["Description"]?.ToString();
+                    macAddress = queryObj["MACAddress"]?.ToString() ?? string.Empty;
                     networkSpeed = (int)(queryObj["Speed"] != null ? Convert.ToUInt64(queryObj["Speed"]) : 0);
-                    //gateway = (string[])queryObj["DefaultIPGateway"];
+                    gateway = (string[])queryObj["DefaultIPGateway"];
 
                     // Afficher les informations dans la fenêtre WPF
-                    networkInfoTextBox.Text += "Name " + nameNet + "\n";
-                    networkInfoTextBox.Text += "Description: " + description + "\n";
-                    networkInfoTextBox.Text += "MACAddress: " + macAddress + "\n";
-                    networkInfoTextBox.Text += "Speed: " + networkSpeed + " bps\n\n";
-                    // networkInfoTextBox.Text += $"Default Gateway: {gateway}\n\n";
+                    networkInfoTextBox.Text += $"Name: {nameNet}\n";
+                    networkInfoTextBox.Text += $"Description: {description}\n";
+                    networkInfoTextBox.Text += $"MACAddress: {macAddress}\n";
+                    networkInfoTextBox.Text += $"Speed: {networkSpeed} bps\n\n";
+                    //networkInfoTextBox.Text += $"Default Gateway: {string.Join(", ", gateway)}\n\n";
 
+                    // Sortir de la boucle après avoir récupéré le premier adaptateur réseau actif
+                    break;
                 }
-                catch (ManagementException ex)
-                {
-
-                }
-
-
             }
-
-
+            catch (ManagementException ex)
+            {
+                MessageBox.Show($"An error occurred while querying network information: {ex.Message}");
+            }
         }
 
         private void Image_MouseUp(object sender, MouseButtonEventArgs e)
@@ -138,10 +123,9 @@ namespace _3ILPark
             Application.Current.Shutdown();
         }
 
-        private async void SendComputers()
+        private async Task SendComputers()
         {
             computers.Id = 0;
-            computers.MappingId = 1;
             computers.RoomId = 1;
             computers.Caption = osVersion;
             computers.Manufacturer = manufacturer;
@@ -149,27 +133,48 @@ namespace _3ILPark
             computers.Name = computerName;
             computers.TotalPhysicalMemory = (int)Convert.ToInt64(totalPhysicalMemory);
             computers.Caption = osVersion;
-            HttpClient client = new HttpClient();
 
-            using HttpResponseMessage response = await client.PostAsJsonAsync(
-            "https://localhost:7195/api/Computers",
-            computers);
+            using HttpClient client = new HttpClient();
+            HttpResponseMessage response = await client.PostAsJsonAsync("https://localhost:7227/api/Computers", computers);
+
+            if (response.IsSuccessStatusCode)
+            {
+                MessageBox.Show("Computer info sent successfully!");
+            }
+            else
+            {
+                string responseContent = await response.Content.ReadAsStringAsync();
+                MessageBox.Show($"Failed to send computer info: {response.ReasonPhrase}\n{responseContent}");
+            }
         }
 
-        private async void SendNetworkInfo()
+       /* private async Task SendNetworkInfo()
         {
-
             networks.NetworkId = 3;
             networks.ComputerId = 1;
             networks.Name = nameNet;
             networks.MACAddress = macAddress;
             networks.Description = description;
-            networks.Speed = (int)(ulong)Convert.ToInt64(networkSpeed);
-            //networks.DefaultIPGateway = gateway;
-            HttpClient client = new HttpClient();
-            /*using HttpResponseMessage response = await client.PostAsJsonAsync(
-            "https://localhost:7195/api/Networks",
-            networks);*/
+            networks.Speed = networkSpeed;
+
+            using HttpClient client = new HttpClient();
+            HttpResponseMessage response = await client.PostAsJsonAsync("https://localhost:7227/api/Networks", networks);
+
+            if (response.IsSuccessStatusCode)
+            {
+                MessageBox.Show("Network info sent successfully!");
+            }
+            else
+            {
+                string responseContent = await response.Content.ReadAsStringAsync();
+                MessageBox.Show($"Failed to send network info: {response.ReasonPhrase}\n{responseContent}");
+            }
+        }*/
+
+        private async void SendData()
+        {
+            await SendComputers();
+           // await SendNetworkInfo();
         }
     }
 }

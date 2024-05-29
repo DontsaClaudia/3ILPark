@@ -1,9 +1,13 @@
-﻿using _3ILPark.Models;
+﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using _3ILPark.Models;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
-namespace _3ILPark.Models
+namespace _3ILPark_API.Models
 {
+    [Index(nameof(Manufacturer), nameof(Model), nameof(Caption), nameof(Name), nameof(TotalPhysicalMemory), nameof(RoomId), IsUnique = true)]
     public class Computers
     {
         [Key]
@@ -13,23 +17,9 @@ namespace _3ILPark.Models
         public string Caption { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public int TotalPhysicalMemory { get; set; }
-        [ForeignKey("Mapping")]
-        public int MappingId { get; set; }
-        public Mapping? position { get; set; }
         [ForeignKey("Rooms")]
         public int? RoomId { get; set; }
         public Rooms? Room { get; set; }
         public DateTime Created_at { get; set; } = DateTime.Now;
-
-        public Computers()
-        {
-
-
-        }
-
-        public static implicit operator Computers(int v)
-        {
-            throw new NotImplementedException();
-        }
     }
 }
