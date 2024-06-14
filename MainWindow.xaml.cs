@@ -1,21 +1,16 @@
 ﻿using _3ILPark.Models;
 using System.Net.Http;
-using System.Text;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
 using System.Management;
 using System.Net.Http.Json;
-using _3ILPark_API.Models;
 using System.Threading.Tasks;
+using System.Linq;
+using _3ILPark_API.Models;
+using Microsoft.VisualBasic.Devices;
+using System.Windows.Input;
 
 namespace _3ILPark
 {
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : Window
     {
         Computers computers = new Computers();
@@ -25,18 +20,25 @@ namespace _3ILPark
         string? totalPhysicalMemory = string.Empty;
         string? computerName = string.Empty;
 
-        Network networks = new Network();
+        Networks networks = new Networks();
         string? nameNet = string.Empty;
         string? description = string.Empty;
         string? macAddress = string.Empty;
+        string[]? ipAddress;
+        string[]? ipSubnet;
+        string[]? dnsServers;
+        string? dhcpServer;
+        string? defaultGateway;
+        bool dhcpEnabled = false;
         int networkSpeed = 0;
-        string[]? gateway;
 
         public MainWindow()
         {
             InitializeComponent();
             GetSystemInfo();
-            GetNetworkInfo();
+            GetAllNetworkAdapters();
+            GetActiveNetworkAdapters();
+            //GetNetworkInfo();
             SendData();
         }
 
@@ -84,37 +86,84 @@ namespace _3ILPark
             }
         }
 
-        private void GetNetworkInfo()
+        private void GetAllNetworkAdapters()
         {
             try
             {
-                // Créer un objet ManagementObjectSearcher pour interroger l'adaptateur réseau actif
-                ManagementObjectSearcher searcher = new ManagementObjectSearcher("SELECT * FROM Win32_NetworkAdapterConfiguration WHERE IPEnabled = TRUE");
-
-                // Parcourir chaque objet ManagementObject retourné par le rechercheur
+                ManagementObjectSearcher searcher = new ManagementObjectSearcher("SELECT * FROM Win32_NetworkAdapter");
                 foreach (ManagementObject queryObj in searcher.Get())
                 {
-                    // Récupérer les propriétés désirées
-                    nameNet = queryObj["Description"]?.ToString();
-                    description = queryObj["Description"]?.ToString();
-                    macAddress = queryObj["MACAddress"]?.ToString() ?? string.Empty;
-                    networkSpeed = (int)(queryObj["Speed"] != null ? Convert.ToUInt64(queryObj["Speed"]) : 0);
-                    gateway = (string[])queryObj["DefaultIPGateway"];
+                    string description = queryObj["Description"]?.ToString() ?? "N/A";
+                    string macAddress = queryObj["MACAddress"]?.ToString() ?? "N/A";
+                    bool netEnabled = queryObj["NetEnabled"] != null && (bool)queryObj["NetEnabled"];
+                    int netConnectionStatus = queryObj["NetConnectionStatus"] != null ? Convert.ToInt32(queryObj["NetConnectionStatus"]) : -1;
 
-                    // Afficher les informations dans la fenêtre WPF
-                    networkInfoTextBox.Text += $"Name: {nameNet}\n";
                     networkInfoTextBox.Text += $"Description: {description}\n";
-                    networkInfoTextBox.Text += $"MACAddress: {macAddress}\n";
-                    networkInfoTextBox.Text += $"Speed: {networkSpeed} bps\n\n";
-                    //networkInfoTextBox.Text += $"Default Gateway: {string.Join(", ", gateway)}\n\n";
-
-                    // Sortir de la boucle après avoir récupéré le premier adaptateur réseau actif
-                    break;
+                    networkInfoTextBox.Text += $"MAC Address: {macAddress}\n";
+                    networkInfoTextBox.Text += $"Net Enabled: {netEnabled}\n";
+                    networkInfoTextBox.Text += $"Net Connection Status: {netConnectionStatus}\n\n";
                 }
             }
             catch (ManagementException ex)
             {
                 MessageBox.Show($"An error occurred while querying network information: {ex.Message}");
+            }
+            catch (System.Exception ex)
+            {
+                MessageBox.Show($"An unexpected error occurred: {ex.Message}");
+            }
+        }
+
+
+        private void GetActiveNetworkAdapters()
+        {
+            try
+            {
+                // Rechercher les adaptateurs réseau activés (NetEnabled = TRUE)
+                ManagementObjectSearcher adapterSearcher = new ManagementObjectSearcher("SELECT * FROM Win32_NetworkAdapter WHERE NetEnabled = TRUE");
+                foreach (ManagementObject adapter in adapterSearcher.Get())
+                {
+                    string description = adapter["Description"]?.ToString() ?? "N/A";
+                    string macAddress = adapter["MACAddress"]?.ToString() ?? "N/A";
+                    string adapterName = adapter["Name"]?.ToString() ?? "N/A";
+                    string settingID = adapter["SettingID"]?.ToString() ?? "N/A";
+
+                    // Afficher les informations de base de l'adaptateur
+                    networkInfoTextBox.Text += $"Name: {adapterName}\n";
+                    networkInfoTextBox.Text += $"Description: {description}\n";
+                    networkInfoTextBox.Text += $"MAC Address: {macAddress}\n";
+
+                    // Obtenir la configuration IP de l'adaptateur
+                    string query = $"SELECT * FROM Win32_NetworkAdapterConfiguration WHERE SettingID = '{settingID}'";
+                    ManagementObjectSearcher configSearcher = new ManagementObjectSearcher(query);
+                    foreach (ManagementObject config in configSearcher.Get())
+                    {
+                        string[] ipAddress = config["IPAddress"] as string[];
+                        string[] ipSubnet = config["IPSubnet"] as string[];
+                        string[] dnsServers = config["DNSServerSearchOrder"] as string[];
+                        string dhcpServer = config["DHCPServer"]?.ToString() ?? "N/A";
+                        string defaultGateway = (config["DefaultIPGateway"] as string[])?.FirstOrDefault() ?? "N/A";
+                        bool dhcpEnabled = (bool)config["DHCPEnabled"];
+                        int networkSpeed = (int)(config["Speed"] != null ? Convert.ToUInt64(config["Speed"]) : 0);
+
+                        // Afficher les informations de configuration IP
+                        networkInfoTextBox.Text += $"IP Address: {string.Join(", ", ipAddress ?? new string[] { "N/A" })}\n";
+                        networkInfoTextBox.Text += $"IP Subnet: {string.Join(", ", ipSubnet ?? new string[] { "N/A" })}\n";
+                        networkInfoTextBox.Text += $"DNS Servers: {string.Join(", ", dnsServers ?? new string[] { "N/A" })}\n";
+                        networkInfoTextBox.Text += $"DHCP Server: {dhcpServer}\n";
+                        networkInfoTextBox.Text += $"Default Gateway: {defaultGateway}\n";
+                        networkInfoTextBox.Text += $"DHCP Enabled: {dhcpEnabled}\n";
+                        networkInfoTextBox.Text += $"Speed: {networkSpeed} bps\n\n";
+                    }
+                }
+            }
+            catch (ManagementException ex)
+            {
+                MessageBox.Show($"An error occurred while querying network information: {ex.Message}");
+            }
+            catch (System.Exception ex)
+            {
+                MessageBox.Show($"An unexpected error occurred: {ex.Message}");
             }
         }
 
@@ -122,6 +171,11 @@ namespace _3ILPark
         {
             Application.Current.Shutdown();
         }
+    
+    
+
+
+
 
         private async Task SendComputers()
         {
@@ -148,14 +202,10 @@ namespace _3ILPark
             }
         }
 
-       /* private async Task SendNetworkInfo()
+        private async Task SendNetworkInfo()
         {
             networks.NetworkId = 3;
             networks.ComputerId = 1;
-            networks.Name = nameNet;
-            networks.MACAddress = macAddress;
-            networks.Description = description;
-            networks.Speed = networkSpeed;
 
             using HttpClient client = new HttpClient();
             HttpResponseMessage response = await client.PostAsJsonAsync("https://localhost:7227/api/Networks", networks);
@@ -169,12 +219,12 @@ namespace _3ILPark
                 string responseContent = await response.Content.ReadAsStringAsync();
                 MessageBox.Show($"Failed to send network info: {response.ReasonPhrase}\n{responseContent}");
             }
-        }*/
+        }
 
         private async void SendData()
         {
             await SendComputers();
-           // await SendNetworkInfo();
+            await SendNetworkInfo();
         }
     }
 }
